@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MassaMatch: Reactievergelijkingen & Massabalans!</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        chem: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            500: '#0d9488',
+                            600: '#0f766e',
+                            700: '#115e59',
+                            800: '#134e4a',
+                            900: '#042f2e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * {
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e6fffa 100%);
+            min-height: 100vh;
+            color: #0f172a;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.03);
+        }
+
+        /* Balance scale animation styles */
+        .scale-beam {
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-origin: center 20px;
+        }
+
+        .scale-pan {
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .step-pill {
+            transition: all 0.3s ease;
+        }
+
+        .step-pill.active {
+            background: #ccfbf1;
+            border-color: #0d9488;
+            color: #0f766e;
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.15);
+        }
+
+        @keyframes pulse-subtle {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .animate-pulse-subtle {
+            animation: pulse-subtle 2s infinite ease-in-out;
+        }
+
+        /* Journey Map Path Styling */
+        .journey-path {
+            stroke-dasharray: 8;
+            animation: dash 30s linear infinite;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -1000;
+            }
+        }
+
+        .map-3d-viewport {
+            perspective: 1000px;
+            overflow-x: auto;
+            overflow-y: auto;
+            max-height: 680px;
+            border-radius: 1.75rem;
+        }
+
+        .map-3d-terrain {
+            transform: rotateX(22deg) rotateZ(-2deg) scale(0.98);
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+            background: linear-gradient(145deg, #022c22 0%, #064e3b 35%, #0f172a 70%, #450a0a 100%);
+            min-width: 850px;
+            min-height: 680px;
+            position: relative;
+            box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.7), inset 0 0 80px rgba(16, 185, 129, 0.15);
+        }
+
+        .landmark-node {
+            transform-style: preserve-3d;
+            transition: all 0.4s ease;
+        }
+
+        .landmark-node:hover {
+            transform: translateZ(25px) scale(1.12);
+        }
+
+        .floating-cloud {
+            animation: floatCloud 25s linear infinite;
+        }
+
+        @keyframes floatCloud {
+            0% { transform: translateX(-10%); }
+            100% { transform: translateX(110%); }
+        }
+
+        .capybara-shadow {
+            filter: drop-shadow(0 14px 10px rgba(0,0,0,0.5));
+        }
+
+        @keyframes capybara-chill {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-5px) rotate(-3deg); }
+            75% { transform: translateY(-3deg) rotate(3deg); }
+        }
+
+        .animate-capybara {
+            animation: capybara-chill 2.8s ease-in-out infinite;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0d9488;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen justify-between text-slate-900 selection:bg-teal-600 selection:text-white pb-6 md:pb-0">
+
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-30 glass-panel border-b border-slate-200 px-3 md:px-4 py-2.5 bg-white/90">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-slate-900 text-teal-400 flex items-center justify-center font-black text-lg md:text-xl shadow-md shrink-0">
+                    <i class="fa-solid font-bold fa-scale-balanced"></i>
+                </div>
+                <div>
+                    <h1 class="font-display font-extrabold text-lg md:text-2xl tracking-tight text-slate-900 leading-tight">
+                        MassaMatch <span class="text-[10px] md:text-xs px-2 py-0.5 rounded-full bg-slate-900 text-teal-300 font-semibold uppercase tracking-wider">Klas 3 + Massabalans</span>
+                    </h1>
+                    <p class="text-[11px] text-slate-500 hidden sm:block">Reactievergelijkingen & Wet van Behoud van Massa</p>
+                </div>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="flex items-center gap-1.5 md:gap-3 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+                <div class="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold" title="Totale Score">
+                    <i class="fa-solid fa-star text-amber-500 text-xs"></i>
+                    <span id="scoreDisplay">0</span> <span class="hidden sm:inline text-[10px] text-amber-600">XP</span>
+                </div>
+                <div class="flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-50 border border-orange-200 text-orange-700 text-xs font-bold" title="Streak">
+                    <i class="fa-solid fa-fire text-orange-500 text-xs"></i>
+                    <span id="streakDisplay">0</span>
+                </div>
+                <div class="flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold max-w-[130px] sm:max-w-none truncate" title="Huidige Stap">
+                    <i class="fa-solid fa-layer-group text-teal-600 text-xs"></i>
+                    <span id="levelBadgeDisplay" class="truncate">Niveau 1</span>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center gap-1.5">
+                <button id="journeyBtn" onclick="openJourneyModal()" class="px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-amber-600 hover:from-emerald-700 hover:to-amber-700 text-white border border-teal-400 shadow-md transition-all text-xs flex items-center gap-2 font-extrabold active:scale-95 animate-pulse-subtle" title="Mijn Chemie Avonturenreis">
+                    <span class="text-base">🦫</span>
+                    <span class="inline">Capybara Reis</span>
+                    <span id="journeyProgressBadge" class="bg-amber-400 text-slate-950 font-black text-[10px] px-1.5 py-0.2 rounded-full">Stap 1</span>
+                </button>
+
+                <button id="theoryBtn" onclick="openModal('theoryModal')" class="p-2 md:px-3 md:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-all text-xs flex items-center gap-1.5 font-semibold active:scale-95" title="Uitleg & 3-Stappenplan">
+                    <i class="fa-solid fa-book-open text-teal-600"></i>
+                    <span class="hidden md:inline">3-Stappenplan</span>
+                </button>
+                <button id="soundToggleBtn" onclick="toggleSound()" class="p-2 md:px-3 md:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-all text-xs active:scale-95" title="Geluid Aan/Uit">
+                    <i id="soundIcon" class="fa-solid fa-volume-high"></i>
+                </button>
+                <button id="achievementsBtn" onclick="openModal('achievementsModal')" class="p-2 md:px-3 md:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-amber-600 border border-slate-300 transition-all text-xs active:scale-95" title="Prestaties & Badges">
+                    <i class="fa-solid fa-award"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Container -->
+    <main class="max-w-7xl mx-auto w-full px-2.5 sm:px-4 py-3 sm:py-6 flex-1 flex flex-col gap-4 md:gap-6">
+
+        <!-- Mode Selection Tabs -->
+        <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="grid grid-cols-3 gap-1 w-full sm:w-auto">
+                <button onclick="switchGameMode('level')" id="modeBtnLevel" class="mode-tab active px-2.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-slate-900 text-white shadow-sm text-center">
+                    <i class="fa-solid fa-trophy text-teal-400 text-xs"></i> <span class="truncate">Oefenen</span>
+                </button>
+                <button onclick="switchGameMode('5min')" id="modeBtn5min" class="mode-tab px-2.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5 text-center">
+                    <i class="fa-solid fa-stopwatch-20 text-amber-500 text-xs"></i> <span class="truncate">5 Min Sprint</span>
+                </button>
+                <button onclick="switchGameMode('sandbox')" id="modeBtnSandbox" class="mode-tab px-2.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5 text-center">
+                    <i class="fa-solid fa-vial-circle-check text-teal-600 text-xs"></i> <span class="truncate">Kiezen</span>
+                </button>
+            </div>
+
+            <!-- Timer / Progress indicator -->
+            <div id="gameStatusIndicator" class="flex items-center justify-between sm:justify-end gap-3 px-2 text-xs text-slate-600">
+                <div id="timerContainer" class="hidden flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-xl text-amber-700 font-mono font-bold text-sm">
+                    <i class="fa-solid fa-clock animate-spin text-amber-600"></i>
+                    <span id="timerDisplay">05:00</span>
+                </div>
+                <div id="levelProgressText" class="text-slate-600 font-medium text-xs">
+                    Opgave <span id="currentEqIndexDisplay" class="text-slate-900 font-bold">1</span> van <span id="totalEqCountDisplay">12</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visual 3-Steps Interactive Header Bar -->
+        <div class="glass-panel rounded-2xl p-3 md:p-4 border border-slate-200 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 bg-white">
+            <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 shrink-0">
+                <i class="fa-solid fa-list-check text-teal-600 text-xs"></i> Het 3-Stappenplan:
+            </div>
+            <div class="grid grid-cols-3 gap-1.5 w-full flex-1 max-w-3xl">
+                <!-- Step 1 -->
+                <div id="stepPill1" class="step-pill active px-2 py-1.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-1.5 text-[11px] sm:text-xs">
+                    <span class="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0">1</span>
+                    <div class="truncate">
+                        <span class="font-bold block text-slate-900 leading-tight truncate">Stap 1: Tel atomen</span>
+                        <span class="text-[9px] sm:text-[10px] text-slate-500 hidden sm:block">Beginbalans</span>
+                    </div>
+                </div>
+                <!-- Step 2 -->
+                <div id="stepPill2" class="step-pill px-2 py-1.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-1.5 text-[11px] sm:text-xs">
+                    <span class="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-[10px] shrink-0">2</span>
+                    <div class="truncate">
+                        <span class="font-bold block text-slate-900 leading-tight truncate">Stap 2: Getallen</span>
+                        <span class="text-[9px] sm:text-[10px] text-slate-500 hidden sm:block">Coëfficiënten</span>
+                    </div>
+                </div>
+                <!-- Step 3 -->
+                <div id="stepPill3" class="step-pill px-2 py-1.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-1.5 text-[11px] sm:text-xs">
+                    <span class="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-[10px] shrink-0">3</span>
+                    <div class="truncate">
+                        <span class="font-bold block text-slate-900 leading-tight truncate">Stap 3: Massabalans</span>
+                        <span class="text-[9px] sm:text-[10px] text-slate-500 hidden sm:block">Wet v. Lavoisier ⚖️</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Interactive Workspace Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
+
+            <!-- Left Panel: Chemical Equation Interactive Card -->
+            <div class="lg:col-span-8 flex flex-col gap-4 md:gap-6">
+
+                <!-- Chemical Equation Display Card -->
+                <div class="glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 relative overflow-hidden border border-slate-200 bg-white">
+
+                    <!-- Category & Step Badge -->
+                    <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span id="reactionCategoryBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200">
+                                Synthesereactie
+                            </span>
+                            <span id="difficultyBadge" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                                🟢 Niveau 1
+                            </span>
+                        </div>
+                        <button onclick="speakEquation()" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors text-xs flex items-center gap-1 active:scale-95" title="Voorlezen">
+                            <i class="fa-solid fa-volume-low text-teal-600"></i> <span class="text-[11px] font-medium">Lees voor</span>
+                        </button>
+                    </div>
+
+                    <p id="equationContextText" class="text-xs sm:text-sm text-slate-700 mb-4 font-medium bg-slate-50 p-3 rounded-xl border border-slate-200/80 leading-relaxed">
+                        Reactie van waterstofgas met zuurstofgas tot water.
+                    </p>
+
+                    <!-- Chemical Equation Builder Bar -->
+                    <div class="bg-slate-50 rounded-2xl p-3 sm:p-6 border border-slate-200 mb-4 shadow-inner overflow-x-auto">
+                        <div id="equationInteractiveContainer" class="flex flex-wrap items-center justify-center gap-y-4 gap-x-2 sm:gap-x-4 text-base sm:text-xl md:text-2xl font-bold min-w-max sm:min-w-0">
+                            <!-- Dynamic Content Rendered via JS -->
+                        </div>
+                    </div>
+
+                    <!-- MASS BALANCING WEAGSCHAAL (BALANCE SCALE) CARD -->
+                    <div class="bg-gradient-to-b from-slate-900 to-slate-950 text-white rounded-2xl p-4 mb-4 border border-slate-800 shadow-xl relative overflow-hidden">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-scale-balanced text-amber-400 text-base"></i>
+                                <span class="font-display font-extrabold text-xs sm:text-sm uppercase tracking-wider text-teal-300">
+                                    Massabalans Visualisatie
+                                </span>
+                            </div>
+                            <span id="lavoisierBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                                Wet van Lavoisier
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                            <!-- Visual Animated Scale Graphic -->
+                            <div class="md:col-span-5 flex flex-col items-center justify-center py-2 bg-slate-900/60 rounded-xl border border-slate-800">
+                                <svg id="scaleSVG" class="w-full max-w-[220px] h-32" viewBox="0 0 200 120">
+                                    <!-- Base/Fulcrum -->
+                                    <path d="M 100 65 L 85 105 L 115 105 Z" fill="#334155" stroke="#475569" stroke-width="2" />
+                                    <circle cx="100" cy="65" r="5" fill="#f59e0b" />
+                                    <!-- Scale Beam (Rotates dynamically) -->
+                                    <g id="scaleBeam" class="scale-beam" style="transform: rotate(0deg);">
+                                        <line x1="20" y1="20" x2="180" y2="20" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" />
+                                        <circle cx="100" cy="20" r="4" fill="#0d9488" />
+                                        <!-- Left Pan Chains & Plate -->
+                                        <line x1="30" y1="20" x2="20" y2="55" stroke="#64748b" stroke-width="1.5" />
+                                        <line x1="30" y1="20" x2="40" y2="55" stroke="#64748b" stroke-width="1.5" />
+                                        <path d="M 10 55 C 10 65, 50 65, 50 55 Z" fill="#0284c7" opacity="0.9" stroke="#38bdf8" stroke-width="1.5" />
+                                        <!-- Right Pan Chains & Plate -->
+                                        <line x1="170" y1="20" x2="160" y2="55" stroke="#64748b" stroke-width="1.5" />
+                                        <line x1="170" y1="20" x2="180" y2="55" stroke="#64748b" stroke-width="1.5" />
+                                        <path d="M 150 55 C 150 65, 190 65, 190 55 Z" fill="#10b981" opacity="0.9" stroke="#34d399" stroke-width="1.5" />
+                                    </g>
+                                </svg>
+                                <span id="scaleStatusText" class="text-[11px] font-bold text-amber-400 mt-1">
+                                    ⚖️ Massa wordt berekend...
+                                </span>
+                            </div>
+
+                            <!-- Mass Numerical Breakdown -->
+                            <div class="md:col-span-7 flex flex-col gap-2">
+                                <div class="grid grid-cols-2 gap-2 text-center">
+                                    <div class="p-2.5 rounded-xl bg-slate-900 border border-sky-500/30">
+                                        <span class="text-[10px] text-sky-400 font-bold block uppercase">Massa Links (Beginstoffen)</span>
+                                        <span id="massLeftDisplay" class="font-mono font-extrabold text-lg sm:text-xl text-white">0,0 u</span>
+                                    </div>
+                                    <div class="p-2.5 rounded-xl bg-slate-900 border border-emerald-500/30">
+                                        <span class="text-[10px] text-emerald-400 font-bold block uppercase">Massa Rechts (Producten)</span>
+                                        <span id="massRightDisplay" class="font-mono font-extrabold text-lg sm:text-xl text-white">0,0 u</span>
+                                    </div>
+                                </div>
+
+                                <div id="massFormulaDetail" class="text-[11px] font-mono text-slate-300 bg-slate-900/80 p-2 rounded-xl border border-slate-800 leading-tight space-y-1">
+                                    <!-- Dynamic mass calculations rendered via JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Controls (Check, Hint, Reset, Next) -->
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1">
+                        <div class="flex items-center gap-2">
+                            <button onclick="resetCoefficients()" class="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-all text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95">
+                                <i class="fa-solid fa-rotate-left"></i> Reset
+                            </button>
+                            <button onclick="getHint()" class="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-all text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95">
+                                <i class="fa-solid fa-lightbulb text-amber-500"></i> Tip
+                            </button>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <button id="checkAnswerBtn" onclick="checkAnswer()" class="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-900 hover:bg-teal-700 text-white font-extrabold text-xs sm:text-sm transition-all shadow-md flex items-center justify-center gap-2 active:scale-95">
+                                <i class="fa-solid fa-scale-balanced text-teal-400"></i> Controleer Massabalans (Stap 3)
+                            </button>
+                            <button id="nextEqBtn" onclick="loadNextEquation()" class="hidden w-full sm:w-auto px-5 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-xs sm:text-sm transition-all shadow-md flex items-center justify-center gap-2 animate-pulse-subtle active:scale-95">
+                                Volgende Reactie <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Hint Box -->
+                    <div id="hintContainer" class="hidden mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex items-start gap-2.5">
+                        <i class="fa-solid fa-lightbulb text-amber-500 text-base mt-0.5 shrink-0"></i>
+                        <div id="hintText" class="font-medium">Focus eerst op de C-atomen aan de linkerkant!</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Panel: Molecular Visualizer & Reference -->
+            <div class="lg:col-span-4 flex flex-col gap-4 md:gap-6">
+
+                <!-- Molecular Visual Representation Box -->
+                <div class="glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-200 bg-white flex flex-col flex-1">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-display font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-cubes text-teal-600"></i> Visuele Moleculen
+                        </h3>
+                        <span class="text-[11px] font-semibold text-slate-500">Modelweergave</span>
+                    </div>
+
+                    <div id="moleculeVisualizer" class="flex-1 min-h-[180px] sm:min-h-[220px] bg-slate-50 rounded-2xl p-3 border border-slate-200 flex flex-col justify-around gap-3 overflow-y-auto max-h-[320px]">
+                        <!-- Rendered Molecule SVGs / Balls dynamically -->
+                    </div>
+
+                    <div class="mt-3 p-2.5 bg-teal-50/60 rounded-xl border border-teal-200 text-[11px] text-teal-900 leading-tight">
+                        <p class="flex items-start gap-1.5">
+                            <i class="fa-solid fa-circle-info text-teal-600 text-xs mt-0.5 shrink-0"></i>
+                            <span><strong>Wet van Lavoisier:</strong> De totale massa van de beginstoffen is altijd GELIJK aan de totale massa van de reactieproducten!</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Element Color & Mass Reference -->
+                <div class="glass-panel rounded-2xl sm:rounded-3xl p-4 border border-slate-200 bg-white">
+                    <h4 class="font-display font-bold text-xs sm:text-sm text-slate-800 mb-2.5 flex items-center gap-2">
+                        <i class="fa-solid fa-atom text-teal-600"></i> Atoommassa Legenda (in u)
+                    </h4>
+                    <div id="elementLegendContainer" class="grid grid-cols-2 gap-1.5 text-[11px] font-medium">
+                        <!-- Dynamic Element Legend with Masses Rendered via JS -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 mt-6 py-3 px-4 text-center text-[11px] text-slate-500">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-1">
+            <p class="font-medium">MassaMatch Scheikunde Klas 3 &copy; Educatieve Simulatie</p>
+            <p>Gebaseerd op de <em>Wet van Behoud van Massa</em> (Antoine Lavoisier, 1789)</p>
+        </div>
+    </footer>
+
+    <!-- MODAL: Journey Roadmap / Chemie Reis -->
+    <div id="journeyModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-slate-900 max-w-6xl w-full max-h-[96vh] overflow-y-auto rounded-3xl p-3 sm:p-6 border border-emerald-500/40 shadow-2xl relative text-white perspective-container">
+            <button onclick="closeModal('journeyModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2 text-xl font-bold active:scale-90 z-40 bg-slate-800/80 rounded-full w-10 h-10 flex items-center justify-center border border-slate-700">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <!-- Header info -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3 pb-3 border-b border-slate-800">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-bold text-xs flex items-center gap-1.5">
+                            <span class="text-sm">🦫</span> Caby's 3D Natuur Expeditie
+                        </span>
+                        <h2 class="font-display font-extrabold text-lg sm:text-2xl text-white">Grote 3D Avonturenkaart</h2>
+                    </div>
+                    <p class="text-xs text-slate-300 mt-0.5">Reis met <strong>Caby de Capybara</strong> door het landschap van huisje, bos, waterval tot de vulkaantop!</p>
+                </div>
+
+                <div class="flex items-center gap-3 bg-slate-800/90 px-4 py-2 rounded-2xl border border-emerald-500/30 shadow-lg">
+                    <div class="text-center">
+                        <span class="text-[10px] text-slate-400 block font-bold uppercase">Totale XP</span>
+                        <span id="journeyXpDisplay" class="text-amber-400 font-extrabold text-base sm:text-lg">0 XP</span>
+                    </div>
+                    <div class="h-7 border-r border-slate-700"></div>
+                    <div class="text-center">
+                        <span class="text-[10px] text-slate-400 block font-bold uppercase">Biomen Behaald</span>
+                        <span id="journeyBadgeCount" class="text-emerald-400 font-extrabold text-base sm:text-lg">0 / 5</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DETAILED 3D ISOMETRIC NATURE LANDSCAPE MAP -->
+            <div class="map-3d-viewport border-2 border-emerald-600/40 rounded-3xl relative my-1 bg-slate-950 p-1">
+                
+                <div class="map-3d-terrain rounded-2xl p-6 overflow-hidden">
+                    
+                    <div class="absolute top-4 left-0 w-full pointer-events-none z-20 flex justify-between opacity-40">
+                        <div class="floating-cloud text-3xl sm:text-4xl">☁️</div>
+                        <div class="floating-cloud text-2xl sm:text-3xl" style="animation-delay: -8s;">☁️</div>
+                        <div class="floating-cloud text-4xl" style="animation-delay: -15s;">☁️</div>
+                    </div>
+
+                    <svg class="absolute inset-0 w-full h-full pointer-events-none opacity-40" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 1000 680">
+                        <path d="M 80 140 Q 280 20, 320 220 T 520 280 T 720 450 T 880 620" fill="none" stroke="#0284c7" stroke-width="36" stroke-linecap="round" filter="blur(1px)" />
+                        <path d="M 80 140 Q 280 20, 320 220 T 520 280 T 720 450 T 880 620" fill="none" stroke="#38bdf8" stroke-width="18" stroke-linecap="round" />
+                        <path d="M 20,20 Q 150,80 180,220 Q 80,320 10,180 Z" fill="#047857" opacity="0.5" />
+                        <path d="M 350,180 Q 520,120 580,260 Q 420,380 320,280 Z" fill="#0f766e" opacity="0.4" />
+                        <path d="M 620,380 Q 820,320 920,480 Q 820,620 680,550 Z" fill="#7f1d1d" opacity="0.35" />
+                    </svg>
+
+                    <svg class="absolute inset-0 w-full h-full pointer-events-none z-10" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 680" preserveAspectRatio="none">
+                        <path d="M 120 120 C 220 240, 240 380, 420 310 C 580 250, 480 500, 680 480 C 760 470, 780 220, 880 180" 
+                              fill="none" stroke="#f59e0b" stroke-width="6" stroke-linecap="round" stroke-dasharray="10 8" class="journey-path opacity-80" />
+                    </svg>
+
+                    <!-- THE CAPYBARA CHARACTER AVATAR -->
+                    <div id="journeyAvatar" class="absolute z-30 transition-all duration-1000 ease-in-out transform -translate-x-1/2 -translate-y-1/2 cursor-pointer animate-capybara" style="left: 12%; top: 18%;">
+                        <div class="relative flex flex-col items-center">
+                            <div class="bg-gradient-to-r from-amber-100 to-amber-50 text-slate-950 font-extrabold text-[11px] sm:text-xs px-3 py-1.5 rounded-2xl shadow-2xl border-2 border-amber-500 whitespace-nowrap mb-1 flex items-center gap-1.5">
+                                <span class="text-sm">💬</span>
+                                <span id="avatarSpeech">Welkom bij mijn Bamboohuisje! 🦫🏡</span>
+                            </div>
+
+                            <div class="relative w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-gradient-to-tr from-amber-700 via-amber-500 to-yellow-300 border-4 border-white shadow-2xl flex items-center justify-center text-3xl sm:text-4xl capybara-shadow transform hover:scale-110 transition-transform">
+                                🦫
+                                <span class="absolute -top-2 -right-2 bg-slate-900 text-teal-300 text-xs p-1 rounded-full border border-teal-400 font-bold shadow-md">⚖️</span>
+                            </div>
+                            <div class="w-10 h-2.5 bg-slate-950/60 rounded-full blur-xs mt-1"></div>
+                        </div>
+                    </div>
+
+                    <div id="journeyMapNodesContainer" class="absolute inset-0 z-20 pointer-events-none">
+                        <!-- Dynamic 3D Nodes Rendered via JS -->
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="mt-3 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <div class="flex items-center gap-2 text-xs text-slate-300 bg-slate-800/80 px-3 py-2 rounded-xl border border-slate-700">
+                    <span class="text-base">🦫</span>
+                    <span>Klik op een landmark om <strong>Caby de Capybara</strong> daarheen te laten lopen en de missie te starten!</span>
+                </div>
+                <button onclick="closeModal('journeyModal')" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs sm:text-sm transition-all shadow-lg active:scale-95">
+                    Terug naar het Lab
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Theory & 3-Step Guide -->
+    <div id="theoryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-3xl p-5 sm:p-8 border border-slate-200 shadow-2xl relative">
+            <button onclick="closeModal('theoryModal')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-900 p-2 text-xl font-bold active:scale-90">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="flex items-center gap-3 mb-4 sm:mb-6">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-teal-100 text-teal-800 flex items-center justify-center text-xl sm:text-2xl font-bold shrink-0">
+                    <i class="fa-solid fa-scale-balanced"></i>
+                </div>
+                <div>
+                    <h2 class="font-display font-extrabold text-lg sm:text-xl text-slate-900">3-Stappenplan & Massabalans</h2>
+                    <p class="text-xs text-teal-700 font-semibold">Zo klop je elke reactievergelijking en massa-analyse!</p>
+                </div>
+            </div>
+
+            <div class="space-y-3 sm:space-y-4 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                <div class="space-y-2.5">
+                    <div class="p-3 sm:p-4 rounded-2xl bg-teal-50 border border-teal-200 flex items-start gap-2.5">
+                        <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-teal-600 text-white font-black flex items-center justify-center text-xs sm:text-sm shrink-0 shadow-xs">1</span>
+                        <div>
+                            <h4 class="font-bold text-teal-900 text-sm sm:text-base mb-0.5">Stap 1: Inventariseer de atomen</h4>
+                            <p class="text-xs text-slate-700">
+                                Tel precies hoeveel atomen van elke soort links van de pijl (beginstoffen) en rechts van de pijl (reactieproducten) staan.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="p-3 sm:p-4 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-start gap-2.5">
+                        <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-indigo-600 text-white font-black flex items-center justify-center text-xs sm:text-sm shrink-0 shadow-xs">2</span>
+                        <div>
+                            <h4 class="font-bold text-indigo-900 text-sm sm:text-base mb-0.5">Stap 2: Pas de coëfficiënten aan</h4>
+                            <p class="text-xs text-slate-700">
+                                Pas de **grote getallen vóór de moleculen** aan. Tip: Begin bij elementen die maar in 1 stof links en 1 stof rechts voorkomen.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="p-3 sm:p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-2.5">
+                        <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-500 text-white font-black flex items-center justify-center text-xs sm:text-sm shrink-0 shadow-xs">3</span>
+                        <div>
+                            <h4 class="font-bold text-amber-900 text-sm sm:text-base mb-0.5">Stap 3: Controleer de Massabalans (Lavoisier)</h4>
+                            <p class="text-xs text-slate-700">
+                                Volgens de **Wet van Behoud van Massa** (Lavoisier) verdwijnen er geen atomen en ontstaan er geen nieuwe atomen. De totale massa voor de pijl moet exact gelijk zijn aan de massa na de pijl ($M_{links} = M_{rechts}$)!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-3.5 rounded-2xl bg-slate-100 border border-slate-300">
+                    <h4 class="font-bold text-amber-700 text-xs sm:text-sm mb-1 flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Belangrijkste Onthoudregel!
+                    </h4>
+                    <p class="text-xs text-slate-700">
+                        Je mag **alleen de grote getallen vóór de formule** veranderen. De kleine cijfertjes (indices zoals de 2 in H₂O) horen bij het molecuul en mag je **NOOIT** veranderen!
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-5 text-right">
+                <button onclick="closeModal('theoryModal')" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm active:scale-95">
+                    Begrepen! Laten we oefenen!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Achievements & Badges -->
+    <div id="achievementsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white max-w-lg w-full rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-2xl relative">
+            <button onclick="closeModal('achievementsModal')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-900 p-2 font-bold active:scale-90">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <h2 class="font-display font-bold text-lg sm:text-xl text-slate-900 mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-award text-amber-500"></i> Jouw Prestaties & Badges
+            </h2>
+
+            <div id="achievementsList" class="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
+                <!-- Rendered dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Sandbox Reaction Selector -->
+    <div id="sandboxModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white max-w-xl w-full rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-2xl relative">
+            <button onclick="closeModal('sandboxModal')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-900 p-2 font-bold active:scale-90">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <h2 class="font-display font-bold text-lg sm:text-xl text-slate-900 mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-vial-circle-check text-teal-600"></i> Kies een Reactie
+            </h2>
+            <p class="text-xs text-slate-500 mb-4">Selecteer een willekeurige reactie uit het onderstaande overzicht om te oefenen:</p>
+
+            <div id="sandboxList" class="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+                <!-- Rendered dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Success Feedback -->
+    <div id="successModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white max-w-md w-full rounded-3xl p-5 sm:p-8 border border-teal-200 text-center shadow-2xl relative">
+            <div class="w-16 h-16 sm:w-20 sm:h-20 bg-emerald-500 text-white rounded-full flex items-center justify-center text-3xl sm:text-4xl font-extrabold mx-auto mb-3 sm:mb-4 shadow-lg">
+                <i class="fa-solid fa-scale-balanced"></i>
+            </div>
+
+            <h3 class="font-display font-extrabold text-xl sm:text-2xl text-slate-900 mb-1">Massabalans Voltooid! ⚖️</h3>
+            <p id="successModalMsg" class="text-xs sm:text-sm text-slate-600 mb-4">Je hebt alle atomen én de totale massa perfect in balans gebracht!</p>
+
+            <div id="successMassSummary" class="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 text-emerald-900 text-xs font-mono font-bold mb-4">
+                Totale Massa Links = Totale Massa Rechts!
+            </div>
+
+            <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 mb-5 flex justify-around">
+                <div>
+                    <span class="text-[11px] text-slate-500 block font-medium">Verdiende XP</span>
+                    <span id="earnedXpDisplay" class="font-bold text-amber-600 text-lg sm:text-xl">+100</span>
+                </div>
+                <div class="border-r border-slate-200"></div>
+                <div>
+                    <span class="text-[11px] text-slate-500 block font-medium">Huidige Streak</span>
+                    <span id="earnedStreakDisplay" class="font-bold text-orange-600 text-lg sm:text-xl">3🔥</span>
+                </div>
+            </div>
+
+            <button onclick="closeModal('successModal'); loadNextEquation();" class="w-full py-3 sm:py-3.5 rounded-xl bg-slate-900 hover:bg-teal-700 text-white font-extrabold text-xs sm:text-base transition-all shadow-md active:scale-95">
+                Volgende Reactie <i class="fa-solid fa-arrow-right ml-1 text-teal-400"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL: Error Feedback -->
+    <div id="errorModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white max-w-lg w-full rounded-3xl p-5 sm:p-8 border border-red-200 shadow-2xl relative">
+            <button onclick="closeModal('errorModal')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-900 p-2 font-bold active:scale-90">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="flex items-center gap-3 mb-3 sm:mb-4">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center text-xl sm:text-2xl font-bold shrink-0">
+                    <i class="fa-solid fa-scale-unbalanced-flip"></i>
+                </div>
+                <div>
+                    <h3 id="errorModalTitle" class="font-display font-extrabold text-lg sm:text-xl text-slate-900">Massa nog niet gelijk!</h3>
+                    <p class="text-xs text-red-600 font-semibold">Feedback & Diagnostiek</p>
+                </div>
+            </div>
+
+            <p id="errorModalIntro" class="text-xs sm:text-sm text-slate-700 mb-3 font-medium">
+                Bekijk wat er nog aangepast moet worden:
+            </p>
+
+            <div id="errorModalFeedbackList" class="space-y-2 max-h-[35vh] overflow-y-auto mb-4 pr-1">
+                <!-- Dynamic feedback items rendered via JS -->
+            </div>
+
+            <div id="errorModalTipContainer" class="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-900 mb-5 flex items-start gap-2">
+                <i class="fa-solid fa-lightbulb text-amber-500 text-base mt-0.5 shrink-0"></i>
+                <div>
+                    <span class="font-bold block mb-0.5">Tip:</span>
+                    <span id="errorModalTipText">Aanpassen maar!</span>
+                </div>
+            </div>
+
+            <button onclick="closeModal('errorModal')" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs sm:text-sm transition-all shadow-md active:scale-95">
+                Ik ga het aanpassen!
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ELEMENT METADATA WITH ATOMIC MASSES (in atomic mass units 'u')
+        const ELEMENT_METADATA = {
+            H: { name: 'Waterstof', mass: 1.0, color: '#f8fafc', textColor: '#0f172a' },
+            O: { name: 'Zuurstof', mass: 16.0, color: '#ef4444', textColor: '#ffffff' },
+            C: { name: 'Koolstof', mass: 12.0, color: '#1e293b', textColor: '#ffffff' },
+            N: { name: 'Stikstof', mass: 14.0, color: '#3b82f6', textColor: '#ffffff' },
+            Na: { name: 'Natrium', mass: 23.0, color: '#a855f7', textColor: '#ffffff' },
+            Cl: { name: 'Chloor', mass: 35.5, color: '#10b981', textColor: '#ffffff' },
+            Mg: { name: 'Magnesium', mass: 24.3, color: '#f97316', textColor: '#ffffff' },
+            Fe: { name: 'IJzer', mass: 55.8, color: '#d97706', textColor: '#ffffff' },
+            S: { name: 'Zwavel', mass: 32.1, color: '#eab308', textColor: '#ffffff' },
+            K: { name: 'Kalium', mass: 39.1, color: '#ec4899', textColor: '#ffffff' }
+        };
+
+        const EQUATIONS_DATABASE = [
+            {
+                id: 1,
+                difficulty: "Makkelijk",
+                levelTag: "🟢 Niveau 1: Makkelijk",
+                badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-300",
+                step: 1,
+                stepName: "Stap 1: Basis",
+                category: "Synthesereactie",
+                context: "Reactie van ijzer (Fe) met zwavel (S) tot ijzersulfide (FeS).",
+                reactants: [
+                    { formula: "Fe", atoms: { Fe: 1 } },
+                    { formula: "S", atoms: { S: 1 } }
+                ],
+                products: [
+                    { formula: "FeS", atoms: { Fe: 1, S: 1 } }
+                ],
+                solution: [1, 1, 1],
+                hint: "Tel de atomen links en rechts. Deze vergelijking klopt eigenlijk al!"
+            },
+            {
+                id: 2,
+                difficulty: "Makkelijk",
+                levelTag: "🟢 Niveau 1: Makkelijk",
+                badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-300",
+                step: 1,
+                stepName: "Stap 1: Basis",
+                category: "Synthesereactie",
+                context: "Reactie van waterstofgas (H₂) met chloorgas (Cl₂) tot waterstofchloride (HCl).",
+                reactants: [
+                    { formula: "H₂", atoms: { H: 2 } },
+                    { formula: "Cl₂", atoms: { Cl: 2 } }
+                ],
+                products: [
+                    { formula: "HCl", atoms: { H: 1, Cl: 1 } }
+                ],
+                solution: [1, 1, 2],
+                hint: "Je hebt 2 H's en 2 Cl's links. Hoeveel moleculen HCl moet je rechts maken?"
+            },
+            {
+                id: 3,
+                difficulty: "Makkelijk",
+                levelTag: "🟢 Niveau 1: Makkelijk",
+                badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-300",
+                step: 1,
+                stepName: "Stap 1: Basis",
+                category: "Verbrandingsreactie",
+                context: "Verbranding van magnesiumlint (Mg) met zuurstofgas (O₂) tot magnesiumoxide (MgO).",
+                reactants: [
+                    { formula: "Mg", atoms: { Mg: 1 } },
+                    { formula: "O₂", atoms: { O: 2 } }
+                ],
+                products: [
+                    { formula: "MgO", atoms: { Mg: 1, O: 1 } }
+                ],
+                solution: [2, 1, 2],
+                hint: "Er zitten 2 O-atomen in O₂, dus je maakt 2 MgO. Pas daarna het getal voor Mg aan."
+            },
+            {
+                id: 4,
+                difficulty: "Makkelijk",
+                levelTag: "🟢 Niveau 1: Makkelijk",
+                badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-300",
+                step: 1,
+                stepName: "Stap 1: Basis",
+                category: "Synthesereactie",
+                context: "Reactie van natriummetaal (Na) met chloorgas (Cl₂) tot keukenzout (NaCl).",
+                reactants: [
+                    { formula: "Na", atoms: { Na: 1 } },
+                    { formula: "Cl₂", atoms: { Cl: 2 } }
+                ],
+                products: [
+                    { formula: "NaCl", atoms: { Na: 1, Cl: 1 } }
+                ],
+                solution: [2, 1, 2],
+                hint: "Omdat Cl₂ twee chlooratomen levert, maak je 2 NaCl aan de rechterkant."
+            },
+            {
+                id: 5,
+                difficulty: "Gemiddeld",
+                levelTag: "🟡 Niveau 2: Gemiddeld",
+                badgeClass: "bg-amber-100 text-amber-800 border-amber-300",
+                step: 1,
+                stepName: "Stap 1: Basis",
+                category: "Synthesereactie",
+                context: "Reactie van waterstofgas (H₂) met zuurstofgas (O₂) tot water (H₂O).",
+                reactants: [
+                    { formula: "H₂", atoms: { H: 2 } },
+                    { formula: "O₂", atoms: { O: 2 } }
+                ],
+                products: [
+                    { formula: "H₂O", atoms: { H: 2, O: 1 } }
+                ],
+                solution: [2, 1, 2],
+                hint: "Zet eerst een 2 voor H₂O om de O-atomen gelijk te maken, tel daarna opnieuw de H-atomen."
+            },
+            {
+                id: 6,
+                difficulty: "Gemiddeld",
+                levelTag: "🟡 Niveau 2: Gemiddeld",
+                badgeClass: "bg-amber-100 text-amber-800 border-amber-300",
+                step: 2,
+                stepName: "Stap 2: Midden",
+                category: "Synthesereactie",
+                context: "Vorming van ammonia (NH₃) uit stikstofgas (N₂) en waterstofgas (H₂).",
+                reactants: [
+                    { formula: "N₂", atoms: { N: 2 } },
+                    { formula: "H₂", atoms: { H: 2 } }
+                ],
+                products: [
+                    { formula: "NH₃", atoms: { N: 1, H: 3 } }
+                ],
+                solution: [1, 3, 2],
+                hint: "Zet een 2 voor NH₃ om de N-atomen kloppend te maken, vul daarna H₂ aan tot 6 H-atomen."
+            },
+            {
+                id: 7,
+                difficulty: "Gemiddeld",
+                levelTag: "🟡 Niveau 2: Gemiddeld",
+                badgeClass: "bg-amber-100 text-amber-800 border-amber-300",
+                step: 2,
+                stepName: "Stap 2: Midden",
+                category: "Verbrandingsreactie",
+                context: "Volledige verbranding van aardgas (methaan: CH₄).",
+                reactants: [
+                    { formula: "CH₄", atoms: { C: 1, H: 4 } },
+                    { formula: "O₂", atoms: { O: 2 } }
+                ],
+                products: [
+                    { formula: "CO₂", atoms: { C: 1, O: 2 } },
+                    { formula: "H₂O", atoms: { H: 2, O: 1 } }
+                ],
+                solution: [1, 2, 1, 2],
+                hint: "1. C klopt al. 2. Maak H kloppend (4 links -> 2 H₂O rechts). 3. Tel alle O's rechts."
+            },
+            {
+                id: 8,
+                difficulty: "Moeilijk",
+                levelTag: "🔴 Niveau 3: Moeilijk",
+                badgeClass: "bg-rose-100 text-rose-800 border-rose-300",
+                step: 2,
+                stepName: "Stap 2: Midden",
+                category: "Verbrandingsreactie",
+                context: "Volledige verbranding van etheen (C₂H₄).",
+                reactants: [
+                    { formula: "C₂H₄", atoms: { C: 2, H: 4 } },
+                    { formula: "O₂", atoms: { O: 2 } }
+                ],
+                products: [
+                    { formula: "CO₂", atoms: { C: 1, O: 2 } },
+                    { formula: "H₂O", atoms: { H: 2, O: 1 } }
+                ],
+                solution: [1, 3, 2, 2],
+                hint: "Zet 2 voor CO₂ en 2 voor H₂O. Tel daarna hoeveel O-atomen je rechts in totaal hebt."
+            },
+            {
+                id: 9,
+                difficulty: "Moeilijk",
+                levelTag: "🔴 Niveau 3: Moeilijk",
+                badgeClass: "bg-rose-100 text-rose-800 border-rose-300",
+                step: 2,
+                stepName: "Stap 2: Midden",
+                category: "Verbrandingsreactie",
+                context: "Volledige verbranding van propaangas (C₃H₈) uit een gastank.",
+                reactants: [
+                    { formula: "C₃H₈", atoms: { C: 3, H: 8 } },
+                    { formula: "O₂", atoms: { O: 2 } }
+                ],
+                products: [
+                    { formula: "CO₂", atoms: { C: 1, O: 2 } },
+                    { formula: "H₂O", atoms: { H: 2, O: 1 } }
+                ],
+                solution: [1, 5, 3, 4],
+                hint: "3 C's -> 3 CO₂. 8 H's -> 4 H₂O. Tel op: (3x2) + (4x1) = 10 O-atomen rechts."
+            },
+            {
+                id: 10,
+                difficulty: "Moeilijk",
+                levelTag: "🔴 Niveau 3: Moeilijk",
+                badgeClass: "bg-rose-100 text-rose-800 border-rose-300",
+                step: 3,
+                stepName: "Stap 3: Expert",
+                category: "Ontledingsreactie",
+                context: "Ontleding van kaliumchloraat (KClO₃) bij verhitting.",
+                reactants: [
+                    { formula: "KClO₃", atoms: { K: 1, Cl: 1, O: 3 } }
+                ],
+                products: [
+                    { formula: "KCl", atoms: { K: 1, Cl: 1 } },
+                    { formula: "O₂", atoms: { O: 2 } }
+                ],
+                solution: [2, 2, 3],
+                hint: "Kijk naar de O-atomen: 3 links en 2 rechts. Maak er aan beide kanten 6 van!"
+            },
+            {
+                id: 11,
+                difficulty: "Uitdagend",
+                levelTag: "🟣 Niveau 4: Meesterklas",
+                badgeClass: "bg-purple-100 text-purple-800 border-purple-300",
+                step: 3,
+                stepName: "Stap 3: Expert",
+                category: "Verbrandingsreactie",
+                context: "Volledige verbranding van ethanol / alcohol (C₂H₆O).",
+                reactants: [
+                    { formula: "C₂H₆O", atoms: { C: 2, H: 6, O: 1 } },
+                    { formula: "O₂", atoms: { O: 2 } }
+                ],
+                products: [
+                    { formula: "CO₂", atoms: { C: 1, O: 2 } },
+                    { formula: "H₂O", atoms: { H: 2, O: 1 } }
+                ],
+                solution: [1, 3, 2, 3],
+                hint: "Let op: Er zit al 1 O-atoom in de stof ethanol (C₂H₆O) zelf!"
+            },
+            {
+                id: 12,
+                difficulty: "Uitdagend",
+                levelTag: "🟣 Niveau 4: Meesterklas",
+                badgeClass: "bg-purple-100 text-purple-800 border-purple-300",
+                step: 3,
+                stepName: "Stap 3: Expert",
+                category: "Verbrandingsreactie",
+                context: "Verbranding van butaangas (C₄H₁₀) in een aansteker.",
+                reactants: [
+                    { formula: "C₄H₁₀", atoms: { C: 4, H: 10 } },
+                    { formula: "O₂", atoms: { O: 2 } }
+                ],
+                products: [
+                    { formula: "CO₂", atoms: { C: 1, O: 2 } },
+                    { formula: "H₂O", atoms: { H: 2, O: 1 } }
+                ],
+                solution: [2, 13, 8, 10],
+                hint: "Met 1 C₄H₁₀ kom je uit op een halve O₂. Verdubbel daarom alle coëfficiënten!"
+            }
+        ];
+
+        const JOURNEY_STOPS = [
+            {
+                id: 1,
+                title: "Caby's Bamboohuisje",
+                landmarkIcon: "🏡",
+                minXp: 0,
+                eqIndex: 0,
+                xPercent: 12,
+                yPercent: 18,
+                speech: "Welkom bij mijn Bamboohuisje! Laten we chill atomen & massa's tellen! 🦫🏡"
+            },
+            {
+                id: 2,
+                title: "Bruisende Waterval Brug",
+                landmarkIcon: "🌉",
+                minXp: 200,
+                eqIndex: 2,
+                xPercent: 42,
+                yPercent: 46,
+                speech: "Over de houten brug bij de waterval! Frisse H₂O moleculen wegen! 🦫🌉"
+            },
+            {
+                id: 3,
+                title: "Stoom Geiser Hut",
+                landmarkIcon: "♨️",
+                minXp: 500,
+                eqIndex: 4,
+                xPercent: 68,
+                yPercent: 71,
+                speech: "Lekker opwarmen bij de geiser! Massa blijft altijd behouden! 🦫♨️"
+            },
+            {
+                id: 4,
+                title: "Kristal Mistgrot",
+                landmarkIcon: "💎",
+                minXp: 900,
+                eqIndex: 7,
+                xPercent: 78,
+                yPercent: 32,
+                speech: "Diep in de kristalgrot! Houd de massabalans strak in de gaten! 🦫💎"
+            },
+            {
+                id: 5,
+                title: "Diamant Vulkaan Piek",
+                landmarkIcon: "🌋",
+                minXp: 1400,
+                eqIndex: 10,
+                xPercent: 88,
+                yPercent: 26,
+                speech: "De top bereikt! Je bent een absolute Massabalans Meester! 🦫👑"
+            }
+        ];
+
+        const ACHIEVEMENTS = [
+            { id: 'first_win', name: 'Eerste Reactie Geklopt', desc: 'Los je allereerste reactievergelijking op!', icon: 'fa-trophy', unlocked: false },
+            { id: 'streak_3', name: 'Op Dreef!', desc: 'Haal een streak van 3 goede antwoorden achter elkaar.', icon: 'fa-fire', unlocked: false },
+            { id: 'level_master', name: 'Niveau 1 Meester', desc: 'Los alle makkelijke vergelijkingen op.', icon: 'fa-graduation-cap', unlocked: false },
+            { id: 'speed_demon', name: 'Sprint Kampioen', desc: 'Behaal 300+ XP in de 5-Minuten Ronde.', icon: 'fa-bolt', unlocked: false }
+        ];
+
+        let currentEquationIndex = 0;
+        let currentCoefficients = [];
+        let score = 0;
+        let streak = 0;
+        let gameMode = 'level';
+        let timerInterval = null;
+        let timeLeft = 300;
+        let soundEnabled = true;
+
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudioOnTouch() {
+            if (!audioCtx) audioCtx = new AudioCtx();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        document.addEventListener('touchstart', initAudioOnTouch, { once: true });
+        document.addEventListener('click', initAudioOnTouch, { once: true });
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new AudioCtx();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+
+                if (type === 'click') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(450, now);
+                    osc.frequency.exponentialRampToValueAtTime(850, now + 0.05);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                } else if (type === 'success') {
+                    const notes = [523.25, 659.25, 783.99, 1046.50];
+                    notes.forEach((freq, idx) => {
+                        const noteOsc = audioCtx.createOscillator();
+                        const noteGain = audioCtx.createGain();
+                        noteOsc.type = 'triangle';
+                        noteOsc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                        noteGain.gain.setValueAtTime(0.15, now + idx * 0.08);
+                        noteGain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.3);
+                        noteOsc.connect(noteGain);
+                        noteGain.connect(audioCtx.destination);
+                        noteOsc.start(now + idx * 0.08);
+                        noteOsc.stop(now + idx * 0.08 + 0.3);
+                    });
+                } else if (type === 'wrong') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.linearRampToValueAtTime(110, now + 0.2);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                }
+            } catch(e) {}
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('soundIcon');
+            if (soundEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-slate-700';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-red-500';
+            }
+        }
+
+        window.onload = function() {
+            loadSavedStats();
+            renderElementLegend();
+            initCurrentEquation();
+            renderAchievements();
+            updateJourneyProgressBadge();
+        };
+
+        function getCurrentEquation() {
+            return EQUATIONS_DATABASE[currentEquationIndex];
+        }
+
+        function renderElementLegend() {
+            const container = document.getElementById('elementLegendContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            for (const [symbol, meta] of Object.entries(ELEMENT_METADATA)) {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-slate-50 p-1.5 rounded-lg border border-slate-200';
+                div.innerHTML = `
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3.5 h-3.5 rounded-full inline-block shadow-xs border border-slate-300" style="background-color:${meta.color}"></span>
+                        <span>${symbol} <span class="text-[10px] text-slate-500 hidden sm:inline">(${meta.name})</span></span>
+                    </div>
+                    <span class="font-mono text-[10px] font-bold text-slate-600 bg-slate-200 px-1 rounded">${meta.mass.toFixed(1)}u</span>
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        function initCurrentEquation() {
+            const eq = getCurrentEquation();
+            const totalMolecules = eq.reactants.length + eq.products.length;
+            
+            currentCoefficients = new Array(totalMolecules).fill(1);
+
+            document.getElementById('currentEqIndexDisplay').innerText = currentEquationIndex + 1;
+            document.getElementById('totalEqCountDisplay').innerText = EQUATIONS_DATABASE.length;
+            document.getElementById('reactionCategoryBadge').innerText = eq.category;
+            
+            const diffBadge = document.getElementById('difficultyBadge');
+            diffBadge.innerText = eq.levelTag || eq.stepName;
+            diffBadge.className = `px-2.5 py-0.5 rounded-full text-[11px] font-bold border flex items-center gap-1 ${eq.badgeClass || 'bg-slate-100 text-slate-800 border-slate-200'}`;
+
+            document.getElementById('equationContextText').innerText = eq.context;
+
+            document.getElementById('hintContainer').classList.add('hidden');
+            document.getElementById('checkAnswerBtn').classList.remove('hidden');
+            document.getElementById('nextEqBtn').classList.add('hidden');
+
+            renderInteractiveEquation();
+            updateAtomCountsAndVisuals();
+            updateStepPillHighlighting(false);
+            updateJourneyProgressBadge();
+        }
+
+        function formatFormulaHTML(formulaStr) {
+            return formulaStr.replace(/([A-Za-z])(\d+)/g, '$1<sub class="text-[11px] sm:text-xs md:text-sm font-semibold">$2</sub>');
+        }
+
+        function renderInteractiveEquation() {
+            const eq = getCurrentEquation();
+            const container = document.getElementById('equationInteractiveContainer');
+            container.innerHTML = '';
+
+            let itemIdx = 0;
+
+            eq.reactants.forEach((r, i) => {
+                if (i > 0) {
+                    const plusSpan = document.createElement('span');
+                    plusSpan.className = 'text-teal-700 px-1 font-extrabold text-lg sm:text-2xl self-center';
+                    plusSpan.innerText = '+';
+                    container.appendChild(plusSpan);
+                }
+
+                container.appendChild(createStepperModule(itemIdx, r.formula));
+                itemIdx++;
+            });
+
+            const arrowDiv = document.createElement('div');
+            arrowDiv.className = 'text-amber-500 px-2 text-lg sm:text-2xl font-extrabold flex items-center self-center';
+            arrowDiv.innerHTML = '<i class="fa-solid fa-right-long animate-pulse"></i>';
+            container.appendChild(arrowDiv);
+
+            eq.products.forEach((p, i) => {
+                if (i > 0) {
+                    const plusSpan = document.createElement('span');
+                    plusSpan.className = 'text-teal-700 px-1 font-extrabold text-lg sm:text-2xl self-center';
+                    plusSpan.innerText = '+';
+                    container.appendChild(plusSpan);
+                }
+
+                container.appendChild(createStepperModule(itemIdx, p.formula));
+                itemIdx++;
+            });
+        }
+
+        function createStepperModule(index, formula) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'flex items-center gap-1 sm:gap-2 bg-white border border-slate-300 p-1.5 sm:p-2 rounded-2xl shadow-xs hover:border-teal-600 transition-all';
+
+            const coeffVal = currentCoefficients[index];
+
+            wrapper.innerHTML = `
+                <div class="flex items-center gap-1">
+                    <button onclick="changeCoefficient(${index}, -1)" class="w-8 h-8 sm:w-9 sm:h-9 bg-slate-100 hover:bg-red-500 hover:text-white text-slate-800 rounded-xl flex items-center justify-center text-sm transition-colors font-bold active:scale-90 border border-slate-200 shrink-0" title="Verminder">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                    <div class="w-7 sm:w-9 text-center font-display font-black text-xl sm:text-2xl md:text-3xl text-teal-700 select-none">
+                        ${coeffVal}
+                    </div>
+                    <button onclick="changeCoefficient(${index}, 1)" class="w-8 h-8 sm:w-9 sm:h-9 bg-slate-100 hover:bg-teal-600 hover:text-white text-slate-800 rounded-xl flex items-center justify-center text-sm transition-colors font-bold active:scale-90 border border-slate-200 shrink-0" title="Vermeerder">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+                <div class="px-1.5 sm:px-2 py-1 text-slate-900 font-display font-extrabold text-sm sm:text-lg md:text-xl tracking-wide select-none">
+                    ${formatFormulaHTML(formula)}
+                </div>
+            `;
+
+            return wrapper;
+        }
+
+        function changeCoefficient(index, delta) {
+            playSound('click');
+            let newCoeff = currentCoefficients[index] + delta;
+            if (newCoeff < 1) newCoeff = 1;
+            if (newCoeff > 20) newCoeff = 20;
+
+            currentCoefficients[index] = newCoeff;
+            renderInteractiveEquation();
+            updateAtomCountsAndVisuals();
+            updateStepPillHighlighting(true);
+        }
+
+        function resetCoefficients() {
+            playSound('click');
+            currentCoefficients = currentCoefficients.map(() => 1);
+            renderInteractiveEquation();
+            updateAtomCountsAndVisuals();
+            updateStepPillHighlighting(false);
+        }
+
+        function calculateMolarMassOfCompound(atomsObj) {
+            let total = 0;
+            for (const [elem, num] of Object.entries(atomsObj)) {
+                const atomicMass = ELEMENT_METADATA[elem] ? ELEMENT_METADATA[elem].mass : 1.0;
+                total += atomicMass * num;
+            }
+            return total;
+        }
+
+        function calculateAtomsAndMass() {
+            const eq = getCurrentEquation();
+            const leftAtoms = {};
+            const rightAtoms = {};
+            let massLeft = 0;
+            let massRight = 0;
+
+            let coeffIndex = 0;
+            const leftDetails = [];
+            const rightDetails = [];
+
+            eq.reactants.forEach(r => {
+                const count = currentCoefficients[coeffIndex];
+                const singleMass = calculateMolarMassOfCompound(r.atoms);
+                const compoundTotalMass = singleMass * count;
+                massLeft += compoundTotalMass;
+
+                leftDetails.push(`${count}× ${r.formula} (${compoundTotalMass.toFixed(1)}u)`);
+
+                for (const [elem, num] of Object.entries(r.atoms)) {
+                    leftAtoms[elem] = (leftAtoms[elem] || 0) + (num * count);
+                }
+                coeffIndex++;
+            });
+
+            eq.products.forEach(p => {
+                const count = currentCoefficients[coeffIndex];
+                const singleMass = calculateMolarMassOfCompound(p.atoms);
+                const compoundTotalMass = singleMass * count;
+                massRight += compoundTotalMass;
+
+                rightDetails.push(`${count}× ${p.formula} (${compoundTotalMass.toFixed(1)}u)`);
+
+                for (const [elem, num] of Object.entries(p.atoms)) {
+                    rightAtoms[elem] = (rightAtoms[elem] || 0) + (num * count);
+                }
+                coeffIndex++;
+            });
+
+            return { leftAtoms, rightAtoms, massLeft, massRight, leftDetails, rightDetails };
+        }
+
+        function updateStepPillHighlighting(hasModifiedCoeffs) {
+            const p1 = document.getElementById('stepPill1');
+            const p2 = document.getElementById('stepPill2');
+            const p3 = document.getElementById('stepPill3');
+
+            p1.classList.remove('active');
+            p2.classList.remove('active');
+            p3.classList.remove('active');
+
+            if (hasModifiedCoeffs) {
+                p2.classList.add('active');
+            } else {
+                p1.classList.add('active');
+            }
+        }
+
+        function updateAtomCountsAndVisuals() {
+            renderMoleculeVisualizer();
+            updateMassBalanceScaleUI();
+        }
+
+        function updateMassBalanceScaleUI() {
+            const { massLeft, massRight, leftDetails, rightDetails } = calculateAtomsAndMass();
+
+            document.getElementById('massLeftDisplay').innerText = `${massLeft.toFixed(1).replace('.', ',')} u`;
+            document.getElementById('massRightDisplay').innerText = `${massRight.toFixed(1).replace('.', ',')} u`;
+
+            const diff = massLeft - massRight;
+            const scaleBeam = document.getElementById('scaleBeam');
+            const scaleStatus = document.getElementById('scaleStatusText');
+            const lavoisierBadge = document.getElementById('lavoisierBadge');
+
+            let angle = 0;
+            if (Math.abs(diff) < 0.05) {
+                angle = 0;
+                scaleStatus.className = "text-[11px] font-bold text-emerald-400 mt-1 flex items-center gap-1";
+                scaleStatus.innerHTML = '<i class="fa-solid fa-circle-check"></i> Massa in Balans! (Wet van Lavoisier)';
+                lavoisierBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40";
+            } else if (diff > 0) {
+                angle = Math.max(-16, -Math.abs(diff) * 0.4);
+                scaleStatus.className = "text-[11px] font-bold text-amber-400 mt-1 flex items-center gap-1";
+                scaleStatus.innerHTML = `<i class="fa-solid fa-scale-unbalanced"></i> Links is ${diff.toFixed(1).replace('.', ',')}u zwaarder!`;
+                lavoisierBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40";
+            } else {
+                angle = Math.min(16, Math.abs(diff) * 0.4);
+                scaleStatus.className = "text-[11px] font-bold text-amber-400 mt-1 flex items-center gap-1";
+                scaleStatus.innerHTML = `<i class="fa-solid fa-scale-unbalanced-flip"></i> Rechts is ${Math.abs(diff).toFixed(1).replace('.', ',')}u zwaarder!`;
+                lavoisierBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40";
+            }
+
+            if (scaleBeam) {
+                scaleBeam.style.transform = `rotate(${angle}deg)`;
+            }
+
+            const formulaDetail = document.getElementById('massFormulaDetail');
+            if (formulaDetail) {
+                formulaDetail.innerHTML = `
+                    <div class="flex justify-between items-center text-slate-300">
+                        <span>Links: ${leftDetails.join(' + ')}</span>
+                        <span class="font-bold text-sky-400">= ${massLeft.toFixed(1).replace('.', ',')} u</span>
+                    </div>
+                    <div class="flex justify-between items-center text-slate-300">
+                        <span>Rechts: ${rightDetails.join(' + ')}</span>
+                        <span class="font-bold text-emerald-400">= ${massRight.toFixed(1).replace('.', ',')} u</span>
+                    </div>
+                `;
+            }
+        }
+
+        function renderMoleculeVisualizer() {
+            const viz = document.getElementById('moleculeVisualizer');
+            if (!viz) return;
+            viz.innerHTML = '';
+
+            const eq = getCurrentEquation();
+            let coeffIdx = 0;
+
+            const makeGroup = (title, items) => {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'flex flex-col gap-1.5';
+
+                const label = document.createElement('span');
+                label.className = 'text-[10px] font-bold uppercase tracking-wider text-slate-400';
+                label.innerText = title;
+                groupDiv.appendChild(label);
+
+                const container = document.createElement('div');
+                container.className = 'flex flex-wrap items-center gap-2';
+
+                items.forEach(item => {
+                    const count = currentCoefficients[coeffIdx];
+                    coeffIdx++;
+
+                    for (let c = 0; c < count; c++) {
+                        const molDiv = document.createElement('div');
+                        molDiv.className = 'flex items-center gap-1 p-1.5 bg-white rounded-xl border border-slate-200 shadow-xs';
+
+                        for (const [elem, num] of Object.entries(item.atoms)) {
+                            const meta = ELEMENT_METADATA[elem] || { color: '#94a3b8', textColor: '#ffffff' };
+                            for (let a = 0; a < num; a++) {
+                                const atomBall = document.createElement('span');
+                                atomBall.className = 'w-4 h-4 rounded-full border border-slate-300 inline-flex items-center justify-center text-[9px] font-black shadow-2xs';
+                                atomBall.style.backgroundColor = meta.color;
+                                atomBall.style.color = meta.textColor;
+                                atomBall.innerText = elem[0];
+                                molDiv.appendChild(atomBall);
+                            }
+                        }
+                        container.appendChild(molDiv);
+                    }
+                });
+
+                groupDiv.appendChild(container);
+                return groupDiv;
+            };
+
+            viz.appendChild(makeGroup('Beginstoffen (Links)', eq.reactants));
+            viz.appendChild(makeGroup('Reactieproducten (Rechts)', eq.products));
+        }
+
+        function checkAnswer() {
+            const eq = getCurrentEquation();
+            const { leftAtoms, rightAtoms, massLeft, massRight } = calculateAtomsAndMass();
+            const allElements = Array.from(new Set([...Object.keys(leftAtoms), ...Object.keys(rightAtoms)]));
+
+            let isCorrect = true;
+            const mistakes = [];
+
+            allElements.forEach(elem => {
+                const l = leftAtoms[elem] || 0;
+                const r = rightAtoms[elem] || 0;
+                if (l !== r) {
+                    isCorrect = false;
+                    mistakes.push({ element: elem, left: l, right: r });
+                }
+            });
+
+            if (isCorrect) {
+                const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+                const overallGcd = currentCoefficients.reduce((acc, val) => gcd(acc, val), currentCoefficients[0]);
+
+                if (overallGcd > 1) {
+                    playSound('wrong');
+                    showErrorModal(
+                        "Vereenvoudig je coëfficiënten!",
+                        "De reactie is in balans, maar je kunt alle getallen nog delen door " + overallGcd + "!",
+                        [{ element: "Samenstellen", left: "Deel alle getallen door " + overallGcd, right: "Laagste verhouding" }],
+                        "Scheikundigen gebruiken altijd de kleinst mogelijke hele getallen."
+                    );
+                    return;
+                }
+
+                playSound('success');
+                score += 100 + (streak * 10);
+                streak += 1;
+                saveStats();
+
+                checkAchievements();
+                updateJourneyProgressBadge();
+
+                document.getElementById('earnedXpDisplay').innerText = `+${100 + (streak * 10)}`;
+                document.getElementById('earnedStreakDisplay').innerText = `${streak}🔥`;
+                
+                const summaryBox = document.getElementById('successMassSummary');
+                if (summaryBox) {
+                    summaryBox.innerText = `Totale Massa: ${massLeft.toFixed(1).replace('.', ',')} u (Links) ⚖️ = ${massRight.toFixed(1).replace('.', ',')} u (Rechts)`;
+                }
+
+                openModal('successModal');
+
+                document.getElementById('stepPill3').classList.add('active');
+                document.getElementById('checkAnswerBtn').classList.add('hidden');
+                document.getElementById('nextEqBtn').classList.remove('hidden');
+
+            } else {
+                playSound('wrong');
+                streak = 0;
+                saveStats();
+
+                const feedbackItems = mistakes.map(m => {
+                    const meta = ELEMENT_METADATA[m.element] || { name: m.element };
+                    return {
+                        element: `${meta.name} (${m.element})`,
+                        left: `${m.left} atomen links`,
+                        right: `${m.right} atomen rechts`
+                    };
+                });
+
+                feedbackItems.push({
+                    element: "⚖️ Massabalans Verschil",
+                    left: `${massLeft.toFixed(1).replace('.', ',')} u links`,
+                    right: `${massRight.toFixed(1).replace('.', ',')} u rechts`
+                });
+
+                showErrorModal(
+                    "Massa nog niet gelijk!",
+                    "De atoom- en massabalans klopt nog niet:",
+                    feedbackItems,
+                    eq.hint
+                );
+            }
+        }
+
+        function showErrorModal(title, intro, items, tip) {
+            document.getElementById('errorModalTitle').innerText = title;
+            document.getElementById('errorModalIntro').innerText = intro;
+
+            const list = document.getElementById('errorModalFeedbackList');
+            list.innerHTML = '';
+
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'p-2.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900 flex items-center justify-between';
+                div.innerHTML = `
+                    <span class="font-bold">${item.element}</span>
+                    <span class="font-mono text-[11px]">${item.left} vs ${item.right}</span>
+                `;
+                list.appendChild(div);
+            });
+
+            document.getElementById('errorModalTipText').innerText = tip;
+            openModal('errorModal');
+        }
+
+        function getHint() {
+            playSound('click');
+            const eq = getCurrentEquation();
+            document.getElementById('hintText').innerText = eq.hint;
+            document.getElementById('hintContainer').classList.remove('hidden');
+        }
+
+        function speakEquation() {
+            playSound('click');
+            if ('speechSynthesis' in window) {
+                const eq = getCurrentEquation();
+                const utterance = new SpeechSynthesisUtterance(eq.context);
+                utterance.lang = 'nl-NL';
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function loadNextEquation() {
+            if (currentEquationIndex < EQUATIONS_DATABASE.length - 1) {
+                currentEquationIndex++;
+            } else {
+                currentEquationIndex = 0;
+            }
+            initCurrentEquation();
+        }
+
+        function getUnlockedJourneyStopIndex() {
+            let highestUnlocked = 0;
+            JOURNEY_STOPS.forEach((stop, idx) => {
+                if (score >= stop.minXp) {
+                    highestUnlocked = idx;
+                }
+            });
+            return highestUnlocked;
+        }
+
+        function updateJourneyProgressBadge() {
+            const currentStopIdx = getUnlockedJourneyStopIndex();
+            const currentStop = JOURNEY_STOPS[currentStopIdx];
+            const badge = document.getElementById('journeyProgressBadge');
+            if (badge) {
+                badge.innerText = `Bioom ${currentStop.id}: ${currentStop.title}`;
+            }
+        }
+
+        function openJourneyModal() {
+            renderJourneyRoadmap();
+            openModal('journeyModal');
+        }
+
+        function renderJourneyRoadmap() {
+            document.getElementById('journeyXpDisplay').innerText = `${score} XP`;
+
+            const currentUnlockedIdx = getUnlockedJourneyStopIndex();
+            let unlockedBadgeCount = currentUnlockedIdx + 1;
+            document.getElementById('journeyBadgeCount').innerText = `${unlockedBadgeCount} / ${JOURNEY_STOPS.length}`;
+
+            const container = document.getElementById('journeyMapNodesContainer');
+            container.innerHTML = '';
+
+            JOURNEY_STOPS.forEach((stop) => {
+                const isUnlocked = score >= stop.minXp;
+
+                const nodeElement = document.createElement('div');
+                nodeElement.className = `landmark-node absolute pointer-events-auto cursor-pointer transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group`;
+                nodeElement.style.left = `${stop.xPercent}%`;
+                nodeElement.style.top = `${stop.yPercent}%`;
+
+                nodeElement.onclick = () => {
+                    if (isUnlocked) {
+                        moveAvatarToStop(stop);
+                        currentEquationIndex = stop.eqIndex;
+                        initCurrentEquation();
+                        setTimeout(() => {
+                            closeModal('journeyModal');
+                        }, 1200);
+                    }
+                };
+
+                nodeElement.innerHTML = `
+                    <div class="relative flex flex-col items-center">
+                        <div class="bg-slate-900/90 text-white font-black text-[10px] sm:text-xs px-2.5 py-1 rounded-xl shadow-xl border ${isUnlocked ? 'border-amber-400' : 'border-slate-700 text-slate-400'} whitespace-nowrap mb-1 flex items-center gap-1.5 transition-transform group-hover:scale-110">
+                            <span>${stop.landmarkIcon}</span>
+                            <span>${stop.title}</span>
+                            <span class="text-[9px] px-1.5 py-0.2 rounded-full ${isUnlocked ? 'bg-emerald-500/30 text-emerald-300' : 'bg-slate-800 text-slate-500'}">
+                                ${isUnlocked ? '✓' : stop.minXp + ' XP'}
+                            </span>
+                        </div>
+
+                        <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr ${isUnlocked ? 'from-amber-500 to-teal-500' : 'from-slate-800 to-slate-900 border-slate-700'} text-white flex items-center justify-center text-2xl sm:text-3xl font-bold shadow-2xl border-2 border-white/80 transform group-hover:rotate-6 transition-all">
+                            ${isUnlocked ? stop.landmarkIcon : '🔒'}
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(nodeElement);
+            });
+
+            const currentStop = JOURNEY_STOPS[currentUnlockedIdx];
+            if (currentStop) {
+                moveAvatarToStop(currentStop);
+            }
+        }
+
+        function moveAvatarToStop(stop) {
+            const avatar = document.getElementById('journeyAvatar');
+            if (avatar) {
+                avatar.style.left = `${stop.xPercent}%`;
+                avatar.style.top = `${stop.yPercent}%`;
+                const speech = document.getElementById('avatarSpeech');
+                if (speech) {
+                    speech.innerText = stop.speech;
+                }
+            }
+        }
+
+        function switchGameMode(mode) {
+            playSound('click');
+            gameMode = mode;
+
+            document.querySelectorAll('.mode-tab').forEach(btn => {
+                btn.classList.remove('bg-slate-900', 'text-white', 'shadow-xs');
+                btn.classList.add('text-slate-600');
+            });
+
+            const timerContainer = document.getElementById('timerContainer');
+
+            if (mode === 'level') {
+                document.getElementById('modeBtnLevel').classList.add('bg-slate-900', 'text-white', 'shadow-xs');
+                timerContainer.classList.add('hidden');
+                clearInterval(timerInterval);
+            } else if (mode === '5min') {
+                document.getElementById('modeBtn5min').classList.add('bg-slate-900', 'text-white', 'shadow-xs');
+                timerContainer.classList.remove('hidden');
+                start5MinTimer();
+            } else if (mode === 'sandbox') {
+                document.getElementById('modeBtnSandbox').classList.add('bg-slate-900', 'text-white', 'shadow-xs');
+                timerContainer.classList.add('hidden');
+                clearInterval(timerInterval);
+                openSandboxModal();
+            }
+        }
+
+        function start5MinTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 300;
+            updateTimerDisplay();
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    showTimeUpModal();
+                }
+            }, 1000);
+        }
+
+        function showTimeUpModal() {
+            showErrorModal(
+                "Tijd is om! ⏱️",
+                `De 5-Minuten Sprint is afgelopen! Je hebt een score van ${score} XP behaald!`,
+                [{ element: "Eindscore", left: `${score} XP`, right: "Sprint afgerond" }],
+                "Probeer het nog een keer om je PR te verbeteren!"
+            );
+        }
+
+        function updateTimerDisplay() {
+            const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+            const s = (timeLeft % 60).toString().padStart(2, '0');
+            document.getElementById('timerDisplay').innerText = `${m}:${s}`;
+        }
+
+        function openSandboxModal() {
+            const list = document.getElementById('sandboxList');
+            list.innerHTML = '';
+
+            EQUATIONS_DATABASE.forEach((eq, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full p-2.5 rounded-xl border border-slate-200 hover:border-teal-600 hover:bg-teal-50/50 text-left transition-all flex items-center justify-between text-xs';
+                btn.onclick = () => {
+                    currentEquationIndex = idx;
+                    initCurrentEquation();
+                    closeModal('sandboxModal');
+                };
+
+                btn.innerHTML = `
+                    <div>
+                        <span class="font-bold text-slate-900 block">${eq.category}: ${eq.reactants.map(r=>r.formula).join(' + ')} → ${eq.products.map(p=>p.formula).join(' + ')}</span>
+                        <span class="text-[10px] text-slate-500">${eq.context}</span>
+                    </div>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${eq.badgeClass}">${eq.difficulty}</span>
+                `;
+                list.appendChild(btn);
+            });
+
+            openModal('sandboxModal');
+        }
+
+        function openModal(id) {
+            playSound('click');
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            playSound('click');
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function saveStats() {
+            document.getElementById('scoreDisplay').innerText = score;
+            document.getElementById('streakDisplay').innerText = streak;
+            localStorage.setItem('massamatch_score', score);
+            localStorage.setItem('massamatch_streak', streak);
+        }
+
+        function loadSavedStats() {
+            score = parseInt(localStorage.getItem('massamatch_score') || localStorage.getItem('chemlab_score')) || 0;
+            streak = parseInt(localStorage.getItem('massamatch_streak') || localStorage.getItem('chemlab_streak')) || 0;
+            document.getElementById('scoreDisplay').innerText = score;
+            document.getElementById('streakDisplay').innerText = streak;
+        }
+
+        function checkAchievements() {
+            if (score > 0) unlockAchievement('first_win');
+            if (streak >= 3) unlockAchievement('streak_3');
+            if (score >= 300 && gameMode === '5min') unlockAchievement('speed_demon');
+            renderAchievements();
+        }
+
+        function unlockAchievement(id) {
+            const ach = ACHIEVEMENTS.find(a => a.id === id);
+            if (ach && !ach.unlocked) {
+                ach.unlocked = true;
+            }
+        }
+
+        function renderAchievements() {
+            const list = document.getElementById('achievementsList');
+            if (!list) return;
+            list.innerHTML = '';
+
+            ACHIEVEMENTS.forEach(ach => {
+                const div = document.createElement('div');
+                div.className = `p-3 rounded-2xl border flex items-center gap-3 ${ach.unlocked ? 'bg-amber-50 border-amber-200 text-amber-950' : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'}`;
+                div.innerHTML = `
+                    <div class="w-10 h-10 rounded-xl ${ach.unlocked ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-500'} flex items-center justify-center text-lg font-bold shrink-0">
+                        <i class="fa-solid ${ach.icon}"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-xs sm:text-sm">${ach.name}</h4>
+                        <p class="text-[10px] sm:text-xs text-slate-500">${ach.desc}</p>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html>
